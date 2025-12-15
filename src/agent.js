@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { PathFinder } from './pathfinding.js';
 
 export class Agent {
-    constructor(maze, startPos) {
+    constructor(maze, startPos, algorithms = null) {
         this.maze = maze;
         this.gridPos = { x: startPos.x, y: startPos.y };
         this.worldPos = new THREE.Vector3(startPos.x * 2, 0.5, startPos.y * 2);
@@ -13,6 +13,9 @@ export class Agent {
         this.moveSpeed = 0.05;
         this.isMoving = false;
         this.targetWorldPos = null;
+
+        // アルゴリズムをMDファイルから読み込んだものを使用
+        this.algorithms = algorithms;
 
         this.createModel();
         this.createSensorVisuals();
@@ -92,7 +95,12 @@ export class Agent {
     }
 
     detectTarget(targetPos) {
-        // センサー範囲内にターゲットがあるかチェック
+        // アルゴリズムがロードされている場合はそれを使用
+        if (this.algorithms && this.algorithms.detectTarget) {
+            return this.algorithms.detectTarget(this.gridPos, targetPos, this.sensorRange);
+        }
+
+        // フォールバック: デフォルトの実装
         const distance = Math.abs(this.gridPos.x - targetPos.x) +
                         Math.abs(this.gridPos.y - targetPos.y);
         return distance <= this.sensorRange;
@@ -107,26 +115,60 @@ export class Agent {
     }
 
     update(targetPos) {
-        // 初回または経路がない場合、ターゲットへの経路を計画
+        // アルゴリズムがロードされている場合はそれを使用
+        if (this.algorithms && this.algorithms.decide && this.algorithms.move && this.algorithms.shouldReplan) {
+            this.updateWithAlgorithm(targetPos);
+        } else {
+            // フォールバック: デフォルトの実装
+            this.updateDefault(targetPos);
+        }
+    }
+
+    updateWithAlgorithm(targetPos) {
+        // MDファイルから読み込んだアルゴリズムを使用
+        const decision = this.algorithms.decide(this, targetPos);
+
+        switch (decision.action) {
+            case 'planPath':
+                this.planPath(targetPos);
+                break;
+            case 'startMove':
+                const nextPos = this.path[0];
+                this.targetWorldPos = new THREE.Vector3(nextPos.x * 2, 0.5, nextPos.y * 2);
+                this.isMoving = true;
+                break;
+            case 'continue':
+                const reached = this.algorithms.move(this, 1);
+                if (reached) {
+                    this.model.position.copy(this.targetWorldPos);
+                    this.gridPos = this.path.shift();
+                    this.isMoving = false;
+                    this.targetWorldPos = null;
+
+                    if (this.algorithms.shouldReplan(this, targetPos)) {
+                        this.planPath(targetPos);
+                    }
+                }
+                break;
+        }
+    }
+
+    updateDefault(targetPos) {
+        // デフォルトの実装（フォールバック）
         if (this.path.length === 0 && !this.isMoving) {
             if (this.detectTarget(targetPos)) {
-                // センサー範囲内にターゲットがある場合
                 this.planPath(targetPos);
             } else {
-                // センサー範囲外の場合も経路を計画（簡易版として常に計画）
-                // より高度な実装では、探索行動を追加可能
                 this.planPath(targetPos);
             }
         }
 
-        // 経路に沿って移動
         if (this.path.length > 0 && !this.isMoving) {
             const nextPos = this.path[0];
             this.targetWorldPos = new THREE.Vector3(nextPos.x * 2, 0.5, nextPos.y * 2);
             this.isMoving = true;
         }
 
-        // 滑らかな移動
         if (this.isMoving && this.targetWorldPos) {
             const direction = new THREE.Vector3()
                 .subVectors(this.targetWorldPos, this.model.position)
@@ -134,18 +176,15 @@ export class Agent {
 
             this.model.position.add(direction.multiplyScalar(this.moveSpeed));
 
-            // 目標に向かって回転
             const angle = Math.atan2(direction.x, direction.z);
             this.model.rotation.y = angle;
 
-            // 目標に到達したか確認
             if (this.model.position.distanceTo(this.targetWorldPos) < 0.1) {
                 this.model.position.copy(this.targetWorldPos);
                 this.gridPos = this.path.shift();
                 this.isMoving = false;
                 this.targetWorldPos = null;
 
-                // 定期的にリプランニング（より良い経路がないかチェック）
                 if (this.path.length === 0 || Math.random() < 0.1) {
                     this.planPath(targetPos);
                 }

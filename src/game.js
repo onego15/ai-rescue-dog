@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Maze } from './maze.js';
 import { Agent } from './agent.js';
+import { AlgorithmLoader } from './algorithmLoader.js';
 
 export class Game {
     constructor() {
@@ -12,12 +13,21 @@ export class Game {
         this.target = null;
         this.targetPos = null;
         this.rescued = false;
+        this.algorithms = null;
 
         this.init();
-        this.animate();
     }
 
-    init() {
+    async init() {
+        // アルゴリズムをMDファイルから読み込む
+        const loader = new AlgorithmLoader();
+        try {
+            this.algorithms = await loader.loadFromMarkdown('/algorithms/agent-behavior.md');
+            console.log('✅ アルゴリズムを正常にロードしました');
+        } catch (error) {
+            console.warn('⚠️ アルゴリズムの読み込みに失敗しました。デフォルトの実装を使用します。');
+            this.algorithms = null;
+        }
         // シーンの作成
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x333333);
@@ -52,9 +62,9 @@ export class Game {
         this.maze = new Maze(21, 21);
         this.createMazeGeometry();
 
-        // エージェントの配置
+        // エージェントの配置（アルゴリズムを渡す）
         const startPos = { x: 1, y: 1 };
-        this.agent = new Agent(this.maze, startPos);
+        this.agent = new Agent(this.maze, startPos, this.algorithms);
         this.scene.add(this.agent.model);
 
         // 救助対象NPCの配置
@@ -65,6 +75,9 @@ export class Game {
 
         // ウィンドウリサイズ対応
         window.addEventListener('resize', () => this.onWindowResize());
+
+        // アニメーションループを開始
+        this.animate();
     }
 
     createMazeGeometry() {
