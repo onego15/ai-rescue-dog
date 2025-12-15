@@ -7,10 +7,19 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="ui-container">
+    <div id="setup-screen">
+        <div id="setup-panel">
+            <h1>🐕 AI RESCUE DOG</h1>
+            <p>OpenAI APIキーを入力してください</p>
+            <input type="password" id="api-key-input" placeholder="sk-...">
+            <p class="hint">※APIキーがない場合は空欄でもフォールバックロジックで動作します</p>
+            <button id="start-button">START GAME</button>
+        </div>
+    </div>
+    <div id="ui-container" style="display: none;">
         <div id="status-panel">
             <div class="status-header">STATUS: AGENT TRIAL</div>
-            <div id="status-info">SEARCH MISSION...</div>
+            <div id="status-info">INITIALIZING...</div>
         </div>
         <div id="minimap-container">
             <canvas id="minimap"></canvas>
