@@ -107,9 +107,16 @@ export class Agent {
     }
 
     update(targetPos) {
-        // ターゲットを検出したら経路を計画
-        if (this.detectTarget(targetPos) && this.path.length === 0) {
-            this.planPath(targetPos);
+        // 初回または経路がない場合、ターゲットへの経路を計画
+        if (this.path.length === 0 && !this.isMoving) {
+            if (this.detectTarget(targetPos)) {
+                // センサー範囲内にターゲットがある場合
+                this.planPath(targetPos);
+            } else {
+                // センサー範囲外の場合も経路を計画（簡易版として常に計画）
+                // より高度な実装では、探索行動を追加可能
+                this.planPath(targetPos);
+            }
         }
 
         // 経路に沿って移動
@@ -138,8 +145,8 @@ export class Agent {
                 this.isMoving = false;
                 this.targetWorldPos = null;
 
-                // 次の経路を計画（リプランニング）
-                if (this.detectTarget(targetPos)) {
+                // 定期的にリプランニング（より良い経路がないかチェック）
+                if (this.path.length === 0 || Math.random() < 0.1) {
                     this.planPath(targetPos);
                 }
             }
