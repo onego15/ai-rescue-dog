@@ -1,0 +1,20 @@
+{
+  "name": "ai-rescue-dog",
+  "version": "1.0.0",
+  "description": "自律型レスキューエージェントゲーム",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": ["game", "ai", "pathfinding", "three.js"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "vite": "^5.0.0"
+  },
+  "dependencies": {
+    "three": "^0.160.0"
+  }
+}
